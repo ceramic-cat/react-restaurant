@@ -5,7 +5,7 @@ export default function Footer() {
     <Container fluid>
       <Row>
         <Col className="text-center py-3 text-bg-primary">
-          © My app {new Date().getFullYear()}
+          © React Restaurant {new Date().getFullYear()}
         </Col>
       </Row>
     </Container>
