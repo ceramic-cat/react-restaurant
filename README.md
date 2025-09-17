@@ -35,7 +35,11 @@ GET to /api/bookings will get you everything.
   - Main page
   - Booking
   - rest lol
-- Booking update + delete actions
+- Booking
+  - update + delete actions
+  - Frontend form validation
+    - dates
+- login component
 
 ## Done
 
@@ -43,3 +47,4 @@ GET to /api/bookings will get you everything.
 - Pretty pictures from pexels.com
 - svg icons from https://www.svgrepo.com/author/wishforge.games/
 - Booking create and read actions
+- Dummy booking form
