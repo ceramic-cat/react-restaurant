@@ -37,8 +37,8 @@ GET to /api/bookings will get you everything.
   - rest lol
 - Booking
   - update + delete actions
-  - Frontend form validation
-    - dates
+  - create separate form for getting partySize, userId
+  - create component for seeing available timeslots
 - login component
 
 ## Done
