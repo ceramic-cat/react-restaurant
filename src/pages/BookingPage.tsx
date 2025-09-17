@@ -12,16 +12,21 @@ export default function BookingPage() {
     const [startTime, setStartTime] = useState('')
     const [endTime, setEndTime] = useState('')
     const [partySize, setPartySize] = useState('')
+    const [requestIsPending, setRequestIsPending] = useState(false)
+
 
     const handleSubmit = (e: any) => {
         e.preventDefault() // prevent that the page refreshes (default behaviour)
         const request = { userId, startTime, endTime, partySize }
-
+        setRequestIsPending(true)
         fetch('/api/bookings', {
             method: 'POST',
             headers: { 'Content-type': 'application/json' },
             body: JSON.stringify(request)
-        }).then(() => console.log('post request finished'))
+        }).then(() => {
+            console.log('post request finished')
+            setRequestIsPending(false)
+        })
     }
 
     return <Row>
@@ -58,7 +63,12 @@ export default function BookingPage() {
                         placeholder='2'
                         onChange={(a) => setPartySize(a.target.value)} />
                 </label>
-                <button>Send request</button>
+                {/* Displays a loading button if the request is loading... 
+                Might remove, since the load seems to be very fast */}
+                {!requestIsPending && <button>Send request</button>}
+                {requestIsPending && <button disabled>Loading</button>}
+
+
             </form>
         </Col>
     </Row>
