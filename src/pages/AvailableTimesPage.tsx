@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Row, Col } from 'react-bootstrap';
-
+import type Booking from '../interfaces/Booking.ts'
 AvailableTimesPage.route = {
     path: '/available-times',
     menuLabel: 'Available timeslots',
@@ -7,21 +8,40 @@ AvailableTimesPage.route = {
 };
 
 export default function AvailableTimesPage() {
+
+    const locale = 'SV-se'
+    const timeMarginHours = 2
+    const [bookings, setBookings] = useState<Booking[]>([])
+    // Date formatting: YYYY-MM-DD
+    // Time formatting: HH:mm:ss (even if seconds are never used)
+    // Example of url string that returns all bookings after time given.
+    // api/bookings?WHERE=startTime>2025-09-12 12:00:00
+
+    const currentDateTime = new Date()
+    // add time margin to not overwhelm the restaurant
+    const bookableTime = currentDateTime.setHours(currentDateTime.getHours() + timeMarginHours).toLocaleString(locale)
+
+    // Fetches all booked times that starts after current time + 2 hours, sets it to bookings <Booking[]>.
+    useEffect(() => {
+        fetch(`/api/bookings?WHERE=startTime>${bookableTime}`)
+            .then((res) => res.json())
+            .then(data => setBookings(data))
+    }, [])
+
     return <>
         <Row>
             <Col>
                 <h2 className="text-primary">Available times</h2>
                 <p>More here soon!</p>
-
-                {/* 
-                fetch bookings for after today
-                render all the day in the current week, with different times depending on the availability
-                create timeslots based on https://stackoverflow.com/questions/8856266/linq-aggregate-and-group-by-periods-of-time , but in typescript.
-            
-            consider using regex for datetime to ensure formatting for creating and reading from database.
-
-
-            */}
+                <ul>
+                    {/* Testing to ensure filtering of dates work by rendering them to the page. */}
+                    {bookings.length > 0 ?
+                        bookings.map(booking => (
+                            <li key={booking.id}> Userid:{booking.userId} | Start time: {booking.startTime}</li>
+                        ))
+                        : <h3>No available bookings</h3>
+                    }
+                </ul>
             </Col>
         </Row>
     </>;
