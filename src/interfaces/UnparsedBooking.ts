@@ -1,4 +1,4 @@
-export default interface Booking{
+export default interface UnparsedBooking{
     id: number
     userId: number
     startTime: string
