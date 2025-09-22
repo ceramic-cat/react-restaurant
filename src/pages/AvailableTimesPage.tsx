@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Row, Col } from 'react-bootstrap';
+import { Row, Col, Container, Card } from 'react-bootstrap';
 import type UnparsedBooking from '../interfaces/UnparsedBooking.ts';
 import type ParsedBooking from '../interfaces/ParsedBooking.ts';
 AvailableTimesPage.route = {
@@ -10,7 +10,7 @@ AvailableTimesPage.route = {
 
 export default function AvailableTimesPage() {
 
-    const locale = 'SE-sv'
+    const locale = 'SV-se'
     const timeMarginHours: number = 2
     const [bookings, setBookings] = useState<ParsedBooking[]>([])
     // Date formatting: YYYY-MM-DDTHH:mm:ss (even if seconds are never used)
@@ -32,9 +32,9 @@ export default function AvailableTimesPage() {
         return items.map(parseBooking)
     }
 
-    const currentDateTime = new Date()
+    const today = new Date()
 
-    const bookableTime = new Date(currentDateTime.getTime());
+    const bookableTime = new Date(today.getTime());
     bookableTime.setHours(bookableTime.getHours() + timeMarginHours);
     const timeString = bookableTime.toLocaleString(locale)
 
@@ -48,7 +48,19 @@ export default function AvailableTimesPage() {
             })
     }, [])
 
+    // -- Making weeks --
+    const currentWeekday = today.getDay()
+    const daysToMonday = (currentWeekday + 6) % 7
+    const monday = new Date(today)
+    monday.setDate(today.getDate() - daysToMonday)
 
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(monday)
+        date.setDate(monday.getDate() + i)
+        return date
+    })
+
+    const currentWeek = false
 
     return <>
         <Row>
@@ -70,8 +82,39 @@ export default function AvailableTimesPage() {
         {/* weekly view */}
         <Row>
             <Col>
+                <Container>
+                    <Row>
+                        {
+                            // dagsiffra från getDay() 0: sön, 6 lördag
+                            // hitta resten av veckans dagar
+                            // foreach -> kolla ifall i=1 är datum siffra. (bryr mig inte om söndag, det får vara default)
+                            // Om mindre än idags siffra, generera datum
+                            // -> ex dag 6/6 är tisdag -> dag 1 5/6 -> setDay(date.getday - i)
 
+                            weekDates.map((date, id) => (
+                                <Col key={id}>{date.toLocaleDateString(locale, {
+                                    weekday: 'narrow',
+                                    day: 'numeric',
+                                    month: 'numeric'
+                                })}</Col>
+                            ))
+                        }
 
+                    </Row>
+                </Container>
+
+            </Col>
+        </Row>
+
+        <Row>
+            <Col>
+                <Container>
+
+                    {[...Array(7)].map((_, i) => (
+                        <Card key={i}>{i + 1}</Card>
+                    ))}
+
+                </Container>
             </Col>
         </Row>
     </>;
