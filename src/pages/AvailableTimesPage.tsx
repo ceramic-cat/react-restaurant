@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Row, Col, Container, Card } from 'react-bootstrap';
 import type UnparsedBooking from '../interfaces/UnparsedBooking.ts';
 import type ParsedBooking from '../interfaces/ParsedBooking.ts';
+import type OperatingHours from '../interfaces/OpeningHours.ts';
+import type Timeslot from '../interfaces/Timeslot.ts';
+
 AvailableTimesPage.route = {
     path: '/available-times',
     menuLabel: 'Available timeslots',
@@ -16,14 +19,47 @@ export default function AvailableTimesPage() {
     // Date formatting: YYYY-MM-DDTHH:mm:ss (even if seconds are never used)
     // Example of url string that returns all bookings after time given.
     // api/bookings?WHERE=startTime>2025-09-12 12:00:00
+    const timeslotDurationMinutes = 120
+    const timeslotIntervalMinutes = 15
+    const timeslotMaximumCapacity = 20
+
+    // helper functions for timeslot management
+    function addMinutes(date: Date, minutes: number) {
+        return new Date(date.getTime() + minutes * 60000)
+    }
+
+    function isTimeOverlapping(startInitial: Date, endInitial: Date, startComparison: Date, endComparison: Date): boolean {
+        return startInitial < endComparison && startComparison < endInitial
+    }
+
+    function generateDayOperatingTimes(date: Date): OperatingHours {
+        const startTime = new Date(date)
+        startTime.setHours(17, 0, 0)
+        const endTime = new Date(date)
+        endTime.setHours(23, 0, 0)
+        return { openingTime: startTime, closingTime: endTime }
+    }
+
+    // generate a weeks worth of operating hours for a given first day of week
+    function generateWeekOperatingTImes(monday: Date): OperatingHours[] {
+        const weekOperatingHours: OperatingHours[] = []
+
+        let dateChecked = new Date(monday);
+        for (let i = 1; i <= 7; i++) {
+            const dailyOperatingHours = generateDayOperatingTimes(dateChecked)
+            weekOperatingHours.push(dailyOperatingHours)
+            dateChecked.setDate(dateChecked.getDate() + 1)
+        }
+        return weekOperatingHours
+    }
 
 
     function parseBooking(item: UnparsedBooking): ParsedBooking {
         return {
             id: item.id,
             userId: item.userId,
-            startTime: new Date(item.startTime.replace(" ", "T")),
-            endTime: new Date(item.endTime.replace(" ", "T")),
+            startTime: new Date(item.startTime),
+            endTime: new Date(item.endTime),
             partySize: item.partySize
         }
     }
@@ -36,17 +72,7 @@ export default function AvailableTimesPage() {
 
     const bookableTime = new Date(today.getTime());
     bookableTime.setHours(bookableTime.getHours() + timeMarginHours);
-    const timeString = bookableTime.toLocaleString(locale)
-
-
-    // Fetches all booked times that starts after current time + 2 hours, sets it to bookings <Booking[]>.
-    useEffect(() => {
-        fetch(`/api/bookings?WHERE=startTime>${timeString}`)
-            .then((res) => res.json())
-            .then((data: UnparsedBooking[]) => {
-                setBookings(parseBookingList(data))
-            })
-    }, [])
+    const timeString = bookableTime.toISOString().split('.')[0]
 
     // -- Making weeks --
     const currentWeekday = today.getDay()
@@ -60,8 +86,57 @@ export default function AvailableTimesPage() {
         return date
     })
 
-    const currentWeek = false
+    // Fetches all booked times that starts after current time + 2 hours, sets it to bookings <Booking[]>.
+    useEffect(() => {
+        fetch(`/api/bookings?WHERE=startTime>${timeString}`)
+            .then((res) => res.json())
+            .then((data: UnparsedBooking[]) => {
+                setBookings(parseBookingList(data))
+            })
+    }, [])
 
+    function generateAvailableTimeslots(bookings: ParsedBooking[], dayStart: Date, dayEnd: Date): Timeslot[] {
+        const timeslots: Timeslot[] = []
+
+        let slotStart = new Date(dayStart) // beginning of timeslot
+        while (addMinutes(slotStart, timeslotDurationMinutes) <= dayEnd) {
+            const slotEnd = addMinutes(slotStart, timeslotDurationMinutes) // end of timeslot
+
+            // Check if any of the bookings in the data are overlapping with the timeslot
+            let usedCapacity = 0
+            for (const booking of bookings) {
+                if (isTimeOverlapping(slotStart, slotEnd, booking.startTime, booking.endTime)) {
+                    usedCapacity += booking.partySize
+                }
+            }
+            const remainingCapacity = timeslotMaximumCapacity - usedCapacity
+
+            timeslots.push({
+                startTime: new Date(slotStart),
+                endTime: new Date(slotEnd),
+                remainingCapacity: remainingCapacity
+            })
+            // a quarter later
+            slotStart = (addMinutes(slotStart, timeslotIntervalMinutes))
+        }
+        return timeslots
+
+    }
+    const day = new Date()
+    day.setDate(day.getDate() + 2)
+    const todayOperating = generateDayOperatingTimes(day)
+
+    // something is wrong... the bookings never end lmao
+    console.log(generateAvailableTimeslots(bookings, todayOperating.openingTime, todayOperating.closingTime))
+
+    function filterBookingsForWeek(monday: Date, allBookings: ParsedBooking[]): ParsedBooking[] {
+        monday.setHours(17, 0, 0)
+        const sunday = new Date(monday)
+        sunday.setDate(monday.getDate() + 6)
+        sunday.setHours(21, 0, 0)
+
+        return allBookings.filter((x) => x.startTime.toISOString() >= monday.toISOString() && x.startTime.toISOString() <= sunday.toISOString())
+    }
     return <>
         <Row>
             <Col>
