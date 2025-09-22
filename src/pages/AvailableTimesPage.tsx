@@ -3,6 +3,8 @@ import { Row, Col, Container, Card } from 'react-bootstrap';
 import type UnparsedBooking from '../interfaces/UnparsedBooking.ts';
 import type ParsedBooking from '../interfaces/ParsedBooking.ts';
 import type OperatingHours from '../interfaces/OpeningHours.ts';
+import type Timeslot from '../interfaces/Timeslot.ts';
+
 AvailableTimesPage.route = {
     path: '/available-times',
     menuLabel: 'Available timeslots',
@@ -17,7 +19,18 @@ export default function AvailableTimesPage() {
     // Date formatting: YYYY-MM-DDTHH:mm:ss (even if seconds are never used)
     // Example of url string that returns all bookings after time given.
     // api/bookings?WHERE=startTime>2025-09-12 12:00:00
+    const timeslotDurationMinutes = 120
+    const timeslotIntervalMinutes = 15
+    const timeslotMaximumCapacity = 20
 
+    // helper functions for timeslot management
+    function addMinutes(date: Date, minutes: number) {
+        return new Date(date.getTime() + minutes * 60000)
+    }
+
+    function isTimeOverlapping(startInitial: Date, endInitial: Date, startComparison: Date, endComparison: Date): boolean {
+        return startInitial < endComparison && startComparison < endInitial
+    }
 
     function generateDayOperatingTimes(date: Date): OperatingHours {
         const startTime = new Date(date)
@@ -81,6 +94,40 @@ export default function AvailableTimesPage() {
                 setBookings(parseBookingList(data))
             })
     }, [])
+
+    function generateAvailableTimeslots(bookings: ParsedBooking[], dayStart: Date, dayEnd: Date): Timeslot[] {
+        const timeslots: Timeslot[] = []
+
+        let slotStart = new Date(dayStart) // beginning of timeslot
+        while (addMinutes(slotStart, timeslotDurationMinutes) <= dayEnd) {
+            const slotEnd = addMinutes(slotStart, timeslotDurationMinutes) // end of timeslot
+
+            // Check if any of the bookings in the data are overlapping with the timeslot
+            let usedCapacity = 0
+            for (const booking of bookings) {
+                if (isTimeOverlapping(slotStart, slotEnd, booking.startTime, booking.endTime)) {
+                    usedCapacity += booking.partySize
+                }
+            }
+            const remainingCapacity = timeslotMaximumCapacity - usedCapacity
+
+            timeslots.push({
+                startTime: new Date(slotStart),
+                endTime: new Date(slotEnd),
+                remainingCapacity: remainingCapacity
+            })
+            // a quarter later
+            slotStart = (addMinutes(slotStart, timeslotIntervalMinutes))
+        }
+        return timeslots
+
+    }
+    const day = new Date()
+    day.setDate(day.getDate() + 2)
+    const todayOperating = generateDayOperatingTimes(day)
+
+    // something is wrong... the bookings never end lmao
+    console.log(generateAvailableTimeslots(bookings, todayOperating.openingTime, todayOperating.closingTime))
 
     function filterBookingsForWeek(monday: Date, allBookings: ParsedBooking[]): ParsedBooking[] {
         monday.setHours(17, 0, 0)
